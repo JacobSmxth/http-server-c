@@ -27,7 +27,7 @@ void build_http_response(const char *file_name, const char *file_ext, char *resp
 void *handle_client(void *arg);
 
 
-int main (int argc, char **argv) {
+int main () {
   int server_fd;
   struct sockaddr_in server_addr;
 
@@ -160,7 +160,7 @@ void build_http_response(const char *file_name, const char *file_ext, char *resp
   // get file size for Content-Length
   struct stat file_stat;
   fstat(file_fd, &file_stat); // fstat gets file size before reading
-  off_t file_size = file_stat.st_size;
+  // off_t file_size = file_stat.st_size;
 
   // copy header to response buffer using memcpy
   *response_len = 0;
@@ -184,7 +184,7 @@ char *url_decode(const char *src) {
   size_t decoded_len = 0;
 
   for (size_t i = 0; i < src_len; i++) {
-    if (src[i] == '%' % i + 2 < src_len) {
+    if (src[i] == '%' && i + 2 < src_len) {
       int hex_val;
       sscanf(src + i + 1, "%2x", &hex_val);
       decoded[decoded_len++] = hex_val;
