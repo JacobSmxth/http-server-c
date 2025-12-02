@@ -1,7 +1,5 @@
 #include <arpa/inet.h>
-#include <ctype.h>
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -66,15 +64,20 @@ int main () {
 
 
     // Accepting income client connection
-    if ((*client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len)) < 0) {
+    *client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+    if (*client_fd < 0) {
       perror("accept failed");
       continue;
     }
 
-    // This lets multiple users connect
+    // Handle multiple concurrent clients with threading
     pthread_t thread_id;
-    pthread_create(&thread_id, NULL, handle_client, (void *)client_fd); // each thread runs handle_client to handle each client
-    pthread_detach(thread_id); // once done it removes the thread
+    if (pthread_create(&thread_id, NULL, handle_client, (void *)client_fd) != 0) {
+      perror("pthread_create failed");
+      close(*client_fd);
+      exit(EXIT_FAILURE);
+    }
+    pthread_detach(thread_id);
   }
 }
 
@@ -83,6 +86,9 @@ int main () {
 void *handle_client(void *arg) {
   int client_fd = *((int *)arg); // typecast back to int *
   char *buffer = (char *)malloc(BUFFER_SIZE * sizeof(char)); // Allocates a buffer for data
+  if (buffer == NULL) {
+    exit(EXIT_FAILURE);
+  }
 
   // Recieve the request from client
   ssize_t bytes_recieved = recv(client_fd, buffer, BUFFER_SIZE, 0); // recv is system_call. Retunrs number of bytes recieved
@@ -117,6 +123,9 @@ void *handle_client(void *arg) {
       strcpy(file_ext, get_file_extension(file_name));
 
       char *response = (char *)malloc(BUFFER_SIZE * 2 * sizeof(char)); // Allocate memory for the response
+      if (response == NULL) {
+        exit(EXIT_FAILURE);
+      }
       size_t response_len;
       build_http_response(file_name, file_ext, response, &response_len);
 
@@ -137,6 +146,9 @@ void build_http_response(const char *file_name, const char *file_ext, char *resp
   const char *mime_type = get_mime_type(file_ext);
   // Allocates memory for header and format HTTP response header
   char *header = (char *)malloc(BUFFER_SIZE * sizeof(char));
+  if (header == NULL) {
+    exit(EXIT_FAILURE);
+  }
   snprintf(header, BUFFER_SIZE,
            "HTTP/1.1 200 OK\r\n"
            "Content-Type: %s\r\n"
@@ -181,6 +193,9 @@ void build_http_response(const char *file_name, const char *file_ext, char *resp
 char *url_decode(const char *src) {
   size_t src_len = strlen(src);
   char *decoded = malloc(src_len + 1);
+  if (decoded == NULL) {
+    exit(EXIT_FAILURE);
+  }
   size_t decoded_len = 0;
 
   for (size_t i = 0; i < src_len; i++) {
